@@ -1,10 +1,10 @@
 name: flutter_spinning_wheel
 description: A customizable widget to use as a spinning wheel in Flutter.
-version: 1.0.0
+version: 1.0.1
 author: David Anaya <danaya@gmail.com>
-homepage: https://github.com/davidanaya/flutter-spinning-wheeel
-repository: https://github.com/davidanaya/flutter-spinning-wheeel
-issue_tracker: https://github.com/davidanaya/flutter-spinning-wheeel/issues
+homepage: https://github.com/davidanaya/flutter-spinning-wheel
+repository: https://github.com/davidanaya/flutter-spinning-wheel
+issue_tracker: https://github.com/davidanaya/flutter-spinning-wheel/issues
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
