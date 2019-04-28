@@ -1,14 +1,60 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_spinning_wheel/src/utils.dart';
-import 'package:flutter_spinning_wheel/src/wheel_velocity.dart';
 
+/// Returns a widget which displays a rotating image.
+/// This widget can be interacted with with drag gestures and could be used as a "fortune wheel".
+///
+/// Required arguments are dimensions and the image to be used as the wheel.
+///
+///     SpinningWheel(Image.asset('assets/images/wheel-6-300.png'), width: 310, height: 310,)
 class SpinningWheel extends StatefulWidget {
+  /// width used by the container with the image
   final double width;
+
+  /// height used by the container with the image
   final double height;
+
+  /// image that will be used as wheel
   final Image image;
+
+  /// number of equal divisions in the wheel
   final int dividers;
+
+  /// initial rotation angle from 0.0 to 2*pi
+  /// default is 0.0
   final double initialSpinAngle;
+
+  /// has to be higher than 0.0 (no resistance) and lower or equal to 1.0
+  /// default is 0.5
+  final double spinResistance;
+
+  /// if true, the user can interact with the wheel while it spins
+  /// default is true
+  final bool canInteractWhileSpinning;
+
+  /// will be rendered on top of the wheel and can be used to show a selector
+  final Image secondaryImage;
+
+  /// x dimension for the secondaty image, if provided
+  /// if provided, has to be smaller than widget height
+  final double secondaryImageHeight;
+
+  /// y dimension for the secondary image, if provided
+  /// if provided, has to be smaller than widget width
+  final double secondaryImageWidth;
+
+  /// can be used to fine tune the position for the secondary image, otherwise it will be centered
+  final double secondaryImageTop;
+
+  /// can be used to fine tune the position for the secondary image, otherwise it will be centered
+  final double secondaryImageLeft;
+
+  /// callback function to be executed when the wheel selection changes
   final Function onUpdate;
+
+  /// callback function to be executed when the animation stops
   final Function onEnd;
 
   SpinningWheel(
@@ -16,10 +62,21 @@ class SpinningWheel extends StatefulWidget {
     @required this.width,
     @required this.height,
     @required this.dividers,
-    this.initialSpinAngle,
+    this.initialSpinAngle: 0.0,
+    this.spinResistance: 0.5,
+    this.canInteractWhileSpinning: true,
+    this.secondaryImage,
+    this.secondaryImageHeight,
+    this.secondaryImageWidth,
+    this.secondaryImageTop,
+    this.secondaryImageLeft,
     this.onUpdate,
     this.onEnd,
-  });
+  })  : assert(width > 0.0 && height > 0.0),
+        assert(spinResistance > 0.0 && spinResistance <= 1.0),
+        assert(initialSpinAngle >= 0.0 && initialSpinAngle <= (2 * pi)),
+        assert(secondaryImage == null ||
+            (secondaryImageHeight <= height && secondaryImageWidth <= width));
 
   @override
   _SpinningWheelState createState() => _SpinningWheelState();
@@ -30,12 +87,15 @@ class _SpinningWheelState extends State<SpinningWheel>
   AnimationController _animationController;
   Animation<double> _animation;
 
+  // we need to store if has the widget behaves differently depending on the status
   AnimationStatus _animationStatus = AnimationStatus.dismissed;
 
   // it helps calculating the velocity based on position and pixels per second velocity and angle
-  WheelVelocity _wheelVelocity;
+  SpinVelocity _spinVelocity;
+  NonUniformCircularMotion _motion;
 
   // keeps the last local position on pan update
+  // we need it onPanEnd to calculate in which cuadrant the user was when last dragged
   Offset _localPositionOnPanUpdate;
 
   // duration of the animation based on the initial velocity
@@ -59,9 +119,18 @@ class _SpinningWheelState extends State<SpinningWheel>
   // spining backwards
   bool _isBackwards;
 
+  // if the user drags outside the wheel, won't be able to get back in
+  DateTime _offsetOutsideTimestamp;
+
+  // will be used to do transformations between global and local
+  RenderBox _renderBox;
+
   @override
   void initState() {
     super.initState();
+
+    _spinVelocity = SpinVelocity(width: widget.width, height: widget.height);
+    _motion = NonUniformCircularMotion(resistance: widget.spinResistance);
 
     _animationController = new AnimationController(
       vsync: this,
@@ -70,56 +139,95 @@ class _SpinningWheelState extends State<SpinningWheel>
     _animation = Tween(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _animationController, curve: Curves.linear));
 
-    _dividerAngle = calculateAnglePerDivision(widget.dividers);
+    _dividerAngle = _motion.anglePerDivision(widget.dividers);
     _initialSpinAngle = widget.initialSpinAngle;
-
-    _wheelVelocity = WheelVelocity(size: Size(widget.width, widget.height));
 
     _animation.addStatusListener((status) {
       _animationStatus = status;
-      if (status == AnimationStatus.completed) {
-        _stop(null);
-      }
+      if (status == AnimationStatus.completed) _stopAnimation();
     });
   }
+
+  double get topSecondaryImage =>
+      widget.secondaryImageTop ??
+      (widget.height / 2) - (widget.secondaryImageHeight / 2);
+
+  double get leftSecondaryImage =>
+      widget.secondaryImageLeft ??
+      (widget.width / 2) - (widget.secondaryImageWidth / 2);
+
+  double get widthSecondaryImage => widget.secondaryImageWidth ?? widget.width;
+
+  double get heightSecondaryImage =>
+      widget.secondaryImageHeight ?? widget.height;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: widget.height,
       width: widget.width,
-      child: GestureDetector(
-        onPanUpdate: _onPanUpdate,
-        onPanEnd: _start,
-        onPanDown: _stop,
-        child: AnimatedBuilder(
-            animation: _animation,
-            child: Container(child: widget.image),
-            builder: (context, child) {
-              _updateAnimationValues();
-              widget.onUpdate(_currentDivider);
-              return Transform.rotate(
-                angle: _initialSpinAngle + _currentDistance,
-                child: child,
-              );
-            }),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onPanUpdate: _moveWheel,
+            onPanEnd: _startAnimation,
+            onPanDown: (_details) => _stopAnimation(),
+            child: AnimatedBuilder(
+                animation: _animation,
+                child: Container(child: widget.image),
+                builder: (context, child) {
+                  _updateAnimationValues();
+                  widget.onUpdate(_currentDivider);
+                  return Transform.rotate(
+                    angle: _initialSpinAngle + _currentDistance,
+                    child: child,
+                  );
+                }),
+          ),
+          widget.secondaryImage != null
+              ? Positioned(
+                  top: topSecondaryImage,
+                  left: leftSecondaryImage,
+                  child: Container(
+                    height: heightSecondaryImage,
+                    width: widthSecondaryImage,
+                    child: widget.secondaryImage,
+                  ))
+              : Container(),
+        ],
       ),
     );
   }
 
+  // user can interact only if widget allows or wheel is not spinning
+  bool get _userCanInteract =>
+      _animationStatus != AnimationStatus.forward ||
+      widget.canInteractWhileSpinning;
+
+  // transforms from global coordinates to local and store the value
+  void _updateLocalPosition(Offset position) {
+    if (_renderBox == null) {
+      _renderBox = context.findRenderObject();
+    }
+    _localPositionOnPanUpdate = _renderBox.globalToLocal(position);
+  }
+
+  /// returns true if (x,y) is outside the boundaries from size
+  bool _contains(Offset p) => Size(widget.width, widget.height).contains(p);
+
+  // this is called just before the animation starts
   void _updateAnimationValues() {
     if (_animationStatus == AnimationStatus.forward) {
       // calculate total distance covered
       var currentTime = _totalDuration * _animation.value;
       _currentDistance =
-          calculateDistance(_initialCircularVelocity, currentTime);
+          _motion.distance(_initialCircularVelocity, currentTime);
       if (_isBackwards) {
         _currentDistance = -_currentDistance;
       }
     }
     // calculate current divider selected
-    var modulo =
-        calculateModuloInCircunference(_currentDistance + _initialSpinAngle);
+    var modulo = _motion.modulo(_currentDistance + _initialSpinAngle);
     _currentDivider = widget.dividers - (modulo ~/ _dividerAngle);
     if (_animationStatus != AnimationStatus.forward) {
       _initialSpinAngle = modulo;
@@ -127,46 +235,69 @@ class _SpinningWheelState extends State<SpinningWheel>
     }
   }
 
-  // void _onWheelTap() {
-  //   if (_animationStatus == AnimationStatus.forward) {
-  //     _stop(null, null);
-  //   } else {
-  //     _start(null);
-  //   }
-  // }
+  void _moveWheel(DragUpdateDetails details) {
+    if (!_userCanInteract) return;
 
-  void _onPanUpdate(DragUpdateDetails details) {
-    RenderBox renderBox = context.findRenderObject();
-    _localPositionOnPanUpdate = renderBox.globalToLocal(details.globalPosition);
-    if (_wheelVelocity.isOffsetInside(_localPositionOnPanUpdate)) {
-      var newAngle = _wheelVelocity.offsetToRadians(_localPositionOnPanUpdate);
-      // initialSpinAngle will be added later on build
+    // user won't be able to get back in after dragin outside
+    if (_offsetOutsideTimestamp != null) return;
+
+    _updateLocalPosition(details.globalPosition);
+
+    if (_contains(_localPositionOnPanUpdate)) {
+      // we need to update the rotation
+      // so, calculate the new rotation angle and rebuild the widget
+      var angle = _spinVelocity.offsetToRadians(_localPositionOnPanUpdate);
       setState(() {
-        _currentDistance = newAngle - _initialSpinAngle;
+        // initialSpinAngle will be added later on build
+        _currentDistance = angle - _initialSpinAngle;
       });
+    } else {
+      // if user dragged outside the boundaries we save the timestamp
+      // when user releases the drag, it will trigger animation only if less than duration time passed from now
+      _offsetOutsideTimestamp = DateTime.now();
     }
   }
 
-  void _stop(DragDownDetails _details) {
+  void _stopAnimation() {
+    if (!_userCanInteract) return;
+
+    _offsetOutsideTimestamp = null;
     _animationController.stop();
     _animationController.reset();
+
     widget.onEnd(_currentDivider);
   }
 
-  void _start(DragEndDetails details) {
-    var velocity = _wheelVelocity.getVelocity(
+  void _startAnimation(DragEndDetails details) {
+    if (!_userCanInteract) return;
+
+    if (_offsetOutsideTimestamp != null) {
+      var difference = DateTime.now().difference(_offsetOutsideTimestamp);
+      _offsetOutsideTimestamp = null;
+      // if more than 50 seconds passed since user dragged outside the boundaries, dont start animation
+      if (difference.inMilliseconds > 50) return;
+    }
+
+    // it was the user just taping to stop the animation
+    if (_localPositionOnPanUpdate == null) return;
+
+    var velocity = _spinVelocity.getVelocity(
         _localPositionOnPanUpdate, details.velocity.pixelsPerSecond);
+
     _localPositionOnPanUpdate = null;
-
     _isBackwards = velocity < 0;
-
     _initialCircularVelocity = pixelsPerSecondToRadians(velocity.abs());
-    _totalDuration = calculateDurationInSeconds(_initialCircularVelocity);
+    _totalDuration = _motion.duration(_initialCircularVelocity);
 
     _animationController.duration =
         Duration(milliseconds: (_totalDuration * 1000).round());
 
     _animationController.reset();
     _animationController.forward();
+  }
+
+  dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 }
