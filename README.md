@@ -10,11 +10,6 @@ A customizable widget to use as a spinning wheel in Flutter.
 - [Basic Usage](#basic-usage)
 - [Constructor](#constructor)
 - [Use Cases](#use-cases)
-  - [Basic](#basic)
-  - [Pagination](#pagination)
-  - [Control buttons](#control-buttons)
-  - [Controller](#controller)
-  - [Autoplay](#autoplay)
 
 ### Installation
 
