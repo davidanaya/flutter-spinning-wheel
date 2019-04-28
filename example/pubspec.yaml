@@ -1,0 +1,25 @@
+name: example
+description: A new Flutter project.
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_spinning_wheel:
+    path: ../
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/wheel-6-300.png
+    - assets/images/roulette-8-300.png
