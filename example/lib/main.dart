@@ -54,24 +54,6 @@ class MyHomePage extends StatelessWidget {
             ),
           ),
         ],
-        // <Widget>[
-        //   buildNavigationButton(
-        //       text: 'B A S I C',
-        //       onPressedFn: () {
-        //         Navigator.push(
-        //           context,
-        //           MaterialPageRoute(builder: (context) => Basic()),
-        //         );
-        //       }),
-        //   buildNavigationButton(
-        //       text: 'R O U L E T T E',
-        //       onPressedFn: () {
-        //         Navigator.push(
-        //           context,
-        //           MaterialPageRoute(builder: (context) => Roulette()),
-        //         );
-        //       }),
-        // ],
       ),
     );
   }
