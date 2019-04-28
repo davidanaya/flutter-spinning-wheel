@@ -37,6 +37,7 @@ class Roulette extends StatelessWidget {
               secondaryImageHeight: 110,
               secondaryImageWidth: 110,
             ),
+            SizedBox(height: 30),
             StreamBuilder(
               stream: _dividerController.stream,
               builder: (context, snapshot) =>
@@ -70,6 +71,6 @@ class Score extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text('${labels[selected]}',
-        style: TextStyle(fontStyle: FontStyle.italic));
+        style: TextStyle(fontStyle: FontStyle.italic, fontSize: 24.0));
   }
 }
