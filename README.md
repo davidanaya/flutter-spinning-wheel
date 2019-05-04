@@ -86,22 +86,23 @@ You can replace the image with one of your preference.
 
 ### Constructor
 
-| Parameter                |         Default          | Description                                                                                       |
-| :----------------------- | :----------------------: | :------------------------------------------------------------------------------------------------ |
-| image                    |                          | The image to be used as wheel.                                                                    |
-| dividers                 |                          | The number of divisions in the image. It's important that all divisions are equal.                |
-| height                   |                          | Height of the container that will display the wheel.                                              |
-| width                    |                          | Width of the container that will display the wheel.                                               |
-| initialSpinAngle         |           0.0            | Initial rotation angle for the wheel, so the wheel could look initialy rotated.                   |
-| spinResistance           |           0.5            | From >0.0 to 1.0 will be used to calculate the speed and deceleration of the wheel.               |
-| canInteractWhileSpinning |           true           | If set to false, once the animation starts the user won't be able to stop it.                     |
-| secondaryImage           |                          | Secondary image that will be rendered on top of the wheel and won't be affected by the animation. |
-| secondaryImageHeight     |                          | Height for the secondary image.                                                                   |
-| secondaryImageWidth      |                          | Width for the secondary image.                                                                    |
-| secondaryImageTop        |                          | Used to fine tune the position of the secondary image. Otherwise it will be centered.             |
-| secondaryImageLeft       |                          | Used to fine tune the position of the secondary image. Otherwise it will be centered.             |
-| onUpdate                 | void onUpdate(int value) | Callback function executed when the selected divider changes during the animation.                |
-| onEnd                    |  void onEnd(int value)   | Callback function executed when the animation stops.                                              |
+| Parameter                |         Default          | Description                                                                                           |
+| :----------------------- | :----------------------: | :---------------------------------------------------------------------------------------------------- |
+| image                    |                          | The image to be used as wheel.                                                                        |
+| dividers                 |                          | The number of divisions in the image. It's important that all divisions are equal.                    |
+| height                   |                          | Height of the container that will display the wheel.                                                  |
+| width                    |                          | Width of the container that will display the wheel.                                                   |
+| initialSpinAngle         |           0.0            | Initial rotation angle for the wheel, so the wheel could look initialy rotated.                       |
+| spinResistance           |           0.5            | From >0.0 to 1.0 will be used to calculate the speed and deceleration of the wheel.                   |
+| canInteractWhileSpinning |           true           | If set to false, once the animation starts the user won't be able to stop it.                         |
+| secondaryImage           |                          | Secondary image that will be rendered on top of the wheel and won't be affected by the animation.     |
+| secondaryImageHeight     |                          | Height for the secondary image.                                                                       |
+| secondaryImageWidth      |                          | Width for the secondary image.                                                                        |
+| secondaryImageTop        |                          | Used to fine tune the position of the secondary image. Otherwise it will be centered.                 |
+| secondaryImageLeft       |                          | Used to fine tune the position of the secondary image. Otherwise it will be centered.                 |
+| onUpdate                 | void onUpdate(int value) | Callback function executed when the selected divider changes during the animation.                    |
+| onEnd                    |  void onEnd(int value)   | Callback function executed when the animation stops.                                                  |
+| shouldStartOrStop        |                          | Stream<double> to interact with the wheel, with double being pixelsPerSecond in axis y (default 8000) |
 
 ### Use Cases
 

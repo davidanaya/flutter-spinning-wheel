@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -57,6 +58,11 @@ class SpinningWheel extends StatefulWidget {
   /// callback function to be executed when the animation stops
   final Function onEnd;
 
+  /// Stream<double> used to trigger an animation
+  /// if triggered in an animation it will stop it, unless canInteractWhileSpinning is false
+  /// the parameter is a double for pixelsPerSecond in axis Y, which defaults to 8000.0 as a medium-high velocity
+  final Stream shouldStartOrStop;
+
   SpinningWheel(
     this.image, {
     @required this.width,
@@ -72,6 +78,7 @@ class SpinningWheel extends StatefulWidget {
     this.secondaryImageLeft,
     this.onUpdate,
     this.onEnd,
+    this.shouldStartOrStop,
   })  : assert(width > 0.0 && height > 0.0),
         assert(spinResistance > 0.0 && spinResistance <= 1.0),
         assert(initialSpinAngle >= 0.0 && initialSpinAngle <= (2 * pi)),
@@ -88,7 +95,7 @@ class _SpinningWheelState extends State<SpinningWheel>
   Animation<double> _animation;
 
   // we need to store if has the widget behaves differently depending on the status
-  AnimationStatus _animationStatus = AnimationStatus.dismissed;
+  // AnimationStatus _animationStatus = AnimationStatus.dismissed;
 
   // it helps calculating the velocity based on position and pixels per second velocity and angle
   SpinVelocity _spinVelocity;
@@ -125,6 +132,9 @@ class _SpinningWheelState extends State<SpinningWheel>
   // will be used to do transformations between global and local
   RenderBox _renderBox;
 
+  // subscription to the stream used to trigger an animation
+  StreamSubscription _subscription;
+
   @override
   void initState() {
     super.initState();
@@ -143,9 +153,25 @@ class _SpinningWheelState extends State<SpinningWheel>
     _initialSpinAngle = widget.initialSpinAngle;
 
     _animation.addStatusListener((status) {
-      _animationStatus = status;
+      // _animationStatus = status;
       if (status == AnimationStatus.completed) _stopAnimation();
     });
+
+    if (widget.shouldStartOrStop != null) {
+      _subscription = widget.shouldStartOrStop.listen(_startOrStop);
+    }
+  }
+
+  _startOrStop(dynamic velocity) {
+    if (_animationController.isAnimating) {
+      _stopAnimation();
+    } else {
+      // velocity is pixels per second in axis Y
+      // we asume a drag from cuadrant 1 with high velocity (8000)
+      var pixelsPerSecondY = velocity ?? 8000.0;
+      _localPositionOnPanUpdate = Offset(250.0, 250.0);
+      _startAnimation(Offset(0.0, pixelsPerSecondY));
+    }
   }
 
   double get topSecondaryImage =>
@@ -170,7 +196,7 @@ class _SpinningWheelState extends State<SpinningWheel>
         children: [
           GestureDetector(
             onPanUpdate: _moveWheel,
-            onPanEnd: _startAnimation,
+            onPanEnd: _startAnimationOnPanEnd,
             onPanDown: (_details) => _stopAnimation(),
             child: AnimatedBuilder(
                 animation: _animation,
@@ -201,8 +227,7 @@ class _SpinningWheelState extends State<SpinningWheel>
 
   // user can interact only if widget allows or wheel is not spinning
   bool get _userCanInteract =>
-      _animationStatus != AnimationStatus.forward ||
-      widget.canInteractWhileSpinning;
+      !_animationController.isAnimating || widget.canInteractWhileSpinning;
 
   // transforms from global coordinates to local and store the value
   void _updateLocalPosition(Offset position) {
@@ -217,7 +242,7 @@ class _SpinningWheelState extends State<SpinningWheel>
 
   // this is called just before the animation starts
   void _updateAnimationValues() {
-    if (_animationStatus == AnimationStatus.forward) {
+    if (_animationController.isAnimating) {
       // calculate total distance covered
       var currentTime = _totalDuration * _animation.value;
       _currentDistance =
@@ -229,7 +254,7 @@ class _SpinningWheelState extends State<SpinningWheel>
     // calculate current divider selected
     var modulo = _motion.modulo(_currentDistance + _initialSpinAngle);
     _currentDivider = widget.dividers - (modulo ~/ _dividerAngle);
-    if (_animationStatus != AnimationStatus.forward) {
+    if (_animationController.isCompleted) {
       _initialSpinAngle = modulo;
       _currentDistance = 0;
     }
@@ -268,7 +293,7 @@ class _SpinningWheelState extends State<SpinningWheel>
     widget.onEnd(_currentDivider);
   }
 
-  void _startAnimation(DragEndDetails details) {
+  void _startAnimationOnPanEnd(DragEndDetails details) {
     if (!_userCanInteract) return;
 
     if (_offsetOutsideTimestamp != null) {
@@ -281,8 +306,12 @@ class _SpinningWheelState extends State<SpinningWheel>
     // it was the user just taping to stop the animation
     if (_localPositionOnPanUpdate == null) return;
 
-    var velocity = _spinVelocity.getVelocity(
-        _localPositionOnPanUpdate, details.velocity.pixelsPerSecond);
+    _startAnimation(details.velocity.pixelsPerSecond);
+  }
+
+  void _startAnimation(Offset pixelsPerSecond) {
+    var velocity =
+        _spinVelocity.getVelocity(_localPositionOnPanUpdate, pixelsPerSecond);
 
     _localPositionOnPanUpdate = null;
     _isBackwards = velocity < 0;
@@ -298,6 +327,9 @@ class _SpinningWheelState extends State<SpinningWheel>
 
   dispose() {
     _animationController.dispose();
+    if (_subscription != null) {
+      _subscription.cancel();
+    }
     super.dispose();
   }
 }

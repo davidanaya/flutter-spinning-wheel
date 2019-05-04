@@ -140,8 +140,11 @@ class BasicScore extends StatelessWidget {
 class Roulette extends StatelessWidget {
   final StreamController _dividerController = StreamController<int>();
 
+  final _wheelNotifier = StreamController<double>();
+
   dispose() {
     _dividerController.close();
+    _wheelNotifier.close();
   }
 
   @override
@@ -167,18 +170,27 @@ class Roulette extends StatelessWidget {
                   Image.asset('assets/images/roulette-center-300.png'),
               secondaryImageHeight: 110,
               secondaryImageWidth: 110,
+              shouldStartOrStop: _wheelNotifier.stream,
             ),
             SizedBox(height: 30),
             StreamBuilder(
               stream: _dividerController.stream,
               builder: (context, snapshot) =>
                   snapshot.hasData ? RouletteScore(snapshot.data) : Container(),
+            ),
+            SizedBox(height: 30),
+            new RaisedButton(
+              child: new Text("Start"),
+              onPressed: () =>
+                  _wheelNotifier.sink.add(_generateRandomVelocity()),
             )
           ],
         ),
       ),
     );
   }
+
+  double _generateRandomVelocity() => (Random().nextDouble() * 6000) + 2000;
 
   double _generateRandomAngle() => Random().nextDouble() * pi * 2;
 }
