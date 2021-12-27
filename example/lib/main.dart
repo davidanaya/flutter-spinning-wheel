@@ -60,14 +60,14 @@ class MyHomePage extends StatelessWidget {
     );
   }
 
-  Widget buildNavigationButton({String text, Function onPressedFn}) {
+  Widget buildNavigationButton({required String text, Function? onPressedFn}) {
     return FlatButton(
       color: Color.fromRGBO(255, 255, 255, 0.3),
       textColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(50.0),
       ),
-      onPressed: onPressedFn,
+      onPressed: onPressedFn as void Function()?,
       child: Text(
         text,
         style: TextStyle(color: Colors.white, fontSize: 18.0),
@@ -105,7 +105,7 @@ class Basic extends StatelessWidget {
             StreamBuilder(
               stream: _dividerController.stream,
               builder: (context, snapshot) =>
-                  snapshot.hasData ? BasicScore(snapshot.data) : Container(),
+                  snapshot.hasData ? BasicScore(snapshot.data as int) : Container(),
             )
           ],
         ),
@@ -117,7 +117,7 @@ class Basic extends StatelessWidget {
 }
 
 class BasicScore extends StatelessWidget {
-  final int selected;
+  final int? selected;
 
   final Map<int, String> labels = {
     1: 'Purple',
@@ -132,7 +132,7 @@ class BasicScore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text('${labels[selected]}',
+    return Text('${labels[selected!]}',
         style: TextStyle(fontStyle: FontStyle.italic));
   }
 }
@@ -176,7 +176,7 @@ class Roulette extends StatelessWidget {
             StreamBuilder(
               stream: _dividerController.stream,
               builder: (context, snapshot) =>
-                  snapshot.hasData ? RouletteScore(snapshot.data) : Container(),
+                  snapshot.hasData ? RouletteScore(snapshot.data as int) : Container(),
             ),
             SizedBox(height: 30),
             new RaisedButton(
@@ -196,7 +196,7 @@ class Roulette extends StatelessWidget {
 }
 
 class RouletteScore extends StatelessWidget {
-  final int selected;
+  final int? selected;
 
   final Map<int, String> labels = {
     1: '1000\$',
@@ -213,7 +213,7 @@ class RouletteScore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text('${labels[selected]}',
+    return Text('${labels[selected!]}',
         style: TextStyle(fontStyle: FontStyle.italic, fontSize: 24.0));
   }
 }
